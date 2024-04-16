@@ -12,10 +12,33 @@ class PostController extends Controller
      */
     public function index()
     {
-        $posts = Post::all();
+        $posts = Post::with('category')->get();
         return view('index', compact('posts'));
     }
 
+    public function search(Request $request)
+    {
+        $search = $request->search;
+
+        $query = Post::query();
+
+        if ($request->filled(['title', 'description'])) {
+            $query->whereAll(['title', 'description'], 'LIKE', "%$search%");
+        } else {
+            $query->whereAny(['title', 'description'], 'LIKE', "%$search%");
+        }
+
+        $query->orWhereHas('category', function ($query) use ($search) {
+            $query->whereAny(['name'], 'LIKE', "%$search%");
+        })
+        ->orWhereHas('user', function ($query) use ($search) {
+            $query->whereAny(['name', 'last_name', 'email'], 'LIKE', "%$search%");
+        });
+
+        $posts = $query->get();
+
+        return view('index', compact('posts', 'search'));
+    }
     /**
      * Show the form for creating a new resource.
      */
